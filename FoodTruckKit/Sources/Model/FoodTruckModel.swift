@@ -7,6 +7,7 @@ The food truck model.
 
 import SwiftUI
 import Combine
+import os
 
 @MainActor
 public class FoodTruckModel: ObservableObject {
@@ -20,6 +21,11 @@ public class FoodTruckModel: ObservableObject {
     var monthlyOrderSummaries: [City.ID: [OrderSummary]] = [:]
 
     public init() {
+        let signposter = OSSignposter()
+        let state = signposter.beginInterval("FoodTruckModel.init")
+        defer {
+            signposter.endInterval("FoodTruckModel.init", state)
+        }
         newDonut = Donut(
             id: Donut.all.count,
             name: String(localized: "New Donut", comment: "New donut-placeholder name."),
@@ -36,17 +42,17 @@ public class FoodTruckModel: ObservableObject {
         monthlyOrderSummaries = Dictionary(uniqueKeysWithValues: City.all.map { city in
             (key: city.id, orderGenerator.historicalMonthlyOrders(since: .now, cityID: city.id))
         })
-        Task(priority: .background) {
-            var generator = OrderGenerator.SeededRandomGenerator(seed: 5)
-            for _ in 0..<20 {
-                try? await Task.sleep(nanoseconds: .secondsToNanoseconds(.random(in: 3 ... 8, using: &generator)))
-                Task { @MainActor in
-                    withAnimation(.spring(response: 0.4, dampingFraction: 1)) {
-                        self.orders.append(orderGenerator.generateOrder(number: orders.count + 1, date: .now, generator: &generator))
-                    }
-                }
-            }
-        }
+        // Task(priority: .background) {
+        //     var generator = OrderGenerator.SeededRandomGenerator(seed: 5)
+        //     for _ in 0..<20 {
+        //         try? await Task.sleep(nanoseconds: .secondsToNanoseconds(.random(in: 3 ... 8, using: &generator)))
+        //         Task { @MainActor in
+        //             withAnimation(.spring(response: 0.4, dampingFraction: 1)) {
+        //                 self.orders.append(orderGenerator.generateOrder(number: orders.count + 1, date: .now, generator: &generator))
+        //             }
+        //         }
+        //     }
+        // }
     }
     
     public func dailyOrderSummaries(cityID: City.ID) -> [OrderSummary] {
@@ -181,6 +187,11 @@ public class FoodTruckModel: ObservableObject {
     }
     
     public func markOrderAsCompleted(id: Order.ID) {
+        let signposter = OSSignposter()
+        let state = signposter.beginInterval("FoodTruckModel.markOrderAsCompleted")
+        defer {
+            signposter.endInterval("FoodTruckModel.markOrderAsCompleted", state)
+        }
         guard let index = orders.firstIndex(where: { $0.id == id }) else {
             return
         }

@@ -30,7 +30,7 @@ struct OrderGenerator {
         let startingDate = Date.now
         var generator = SeededRandomGenerator(seed: 1)
         var previousOrderTime = startingDate.addingTimeInterval(-60 * 4)
-        let totalOrders = 24
+        let totalOrders = 24_000
         return (0 ..< totalOrders).map { index in
             previousOrderTime -= .random(in: 60 ..< 180, using: &generator)
             
@@ -54,7 +54,7 @@ struct OrderGenerator {
         })
         let totalSales = sales.map(\.value).reduce(0, +)
         return Order(
-            id: String(localized: "Order") + String(localized: ("#\(12)\(number, specifier: "%02d")")),
+            id: "Order#\(number)",
             status: .placed,
             donuts: Array(donuts),
             sales: sales,

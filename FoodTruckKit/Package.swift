@@ -1,4 +1,4 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.9.2
 
 /*
 See the LICENSE.txt file for this sample’s licensing information.
@@ -23,11 +23,21 @@ let package = Package(
             targets: ["FoodTruckKit"]
         )
     ],
-    dependencies: [],
+    dependencies: [
+        .package(
+            url: "https://github.com/swift-cowbox/swift-cowbox.git",
+            branch: "main"
+        ),
+    ],
     targets: [
         .target(
             name: "FoodTruckKit",
-            dependencies: [],
+            dependencies: [
+                .product(
+                    name: "CowBox",
+                    package: "swift-cowbox"
+                ),
+            ],
             path: "Sources"
         )
     ]

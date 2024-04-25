@@ -7,51 +7,52 @@ The order model.
 
 import Foundation
 import SwiftUI
+import CowBox
 
-public struct Order: Identifiable, Equatable {
-    public var id: String
+@CowBox public struct Order: Identifiable, Equatable {
+    @CowBoxMutating public var id: String
     
     // order
-    public var status: OrderStatus
-    public var donuts: [Donut]
-    public var sales: [Donut.ID: Int]
-    public var grandTotal: Decimal
+    @CowBoxMutating public var status: OrderStatus
+    @CowBoxMutating public var donuts: [Donut]
+    @CowBoxMutating public var sales: [Donut.ID: Int]
+    @CowBoxMutating public var grandTotal: Decimal
     
     // location
-    public var city: City.ID
-    public var parkingSpot: ParkingSpot.ID
+    @CowBoxMutating public var city: City.ID
+    @CowBoxMutating public var parkingSpot: ParkingSpot.ID
     
     // metadata
-    public var creationDate: Date
-    public var completionDate: Date?
-    public var temperature: Measurement<UnitTemperature>
-    public var wasRaining: Bool
+    @CowBoxMutating public var creationDate: Date
+    @CowBoxMutating public var completionDate: Date?
+    @CowBoxMutating public var temperature: Measurement<UnitTemperature>
+    @CowBoxMutating public var wasRaining: Bool
     
-    public init(
-        id: String,
-        status: OrderStatus,
-        donuts: [Donut],
-        sales: [Donut.ID: Int],
-        grandTotal: Decimal,
-        city: City.ID,
-        parkingSpot: ParkingSpot.ID,
-        creationDate: Date,
-        completionDate: Date?,
-        temperature: Measurement<UnitTemperature>,
-        wasRaining: Bool
-    ) {
-        self.id = id
-        self.status = status
-        self.donuts = donuts
-        self.sales = sales
-        self.grandTotal = grandTotal
-        self.city = city
-        self.parkingSpot = parkingSpot
-        self.creationDate = creationDate
-        self.completionDate = completionDate
-        self.temperature = temperature
-        self.wasRaining = wasRaining
-    }
+    // public init(
+    //     id: String,
+    //     status: OrderStatus,
+    //     donuts: [Donut],
+    //     sales: [Donut.ID: Int],
+    //     grandTotal: Decimal,
+    //     city: City.ID,
+    //     parkingSpot: ParkingSpot.ID,
+    //     creationDate: Date,
+    //     completionDate: Date?,
+    //     temperature: Measurement<UnitTemperature>,
+    //     wasRaining: Bool
+    // ) {
+    //     self.id = id
+    //     self.status = status
+    //     self.donuts = donuts
+    //     self.sales = sales
+    //     self.grandTotal = grandTotal
+    //     self.city = city
+    //     self.parkingSpot = parkingSpot
+    //     self.creationDate = creationDate
+    //     self.completionDate = completionDate
+    //     self.temperature = temperature
+    //     self.wasRaining = wasRaining
+    // }
     
     public var duration: TimeInterval? {
         guard let completionDate = completionDate else {
