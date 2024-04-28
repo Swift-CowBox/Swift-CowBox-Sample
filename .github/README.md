@@ -79,11 +79,19 @@ Our experiments will begin with `sample-food-truck`[^2] from Apple. This project
 
 To get started, feel free to clone the original repo and build the app locally. You can try as many platforms as you like, but we will focus on macOS for our analysis. Here is what the app looks like built for macOS:
 
-![](2024-04-26-1.png)
+<picture>
+ <source media="(prefers-color-scheme: dark)" srcset="2024-04-26-3.png">
+ <source media="(prefers-color-scheme: light)" srcset="2024-04-26-1.png">
+ <img src="2024-04-26-1.png">
+</picture>
 
 We will spend most of our time investigating the `OrdersTable`. Here is what that component looks like:
 
-![](2024-04-26-2.png)
+<picture>
+ <source media="(prefers-color-scheme: dark)" srcset="2024-04-26-4.png">
+ <source media="(prefers-color-scheme: light)" srcset="2024-04-26-2.png">
+ <img src="2024-04-26-2.png">
+</picture>
 
 The `OrdersTable`[^3] is a SwiftUI component that reads (and displays) data from a `FoodTruckModel`[^4] object instance. The `FoodTruckModel` object instance manages an `Array` of `Order`[^5] value types. Our sample app from Apple launches with 24 `Order` instances generated from a `OrderGenerator`[^6]. We will increase this by three orders of magnitude and measure performance as we migrate our `Order` struct to copy-on-write semantics.
 
