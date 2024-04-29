@@ -1103,7 +1103,7 @@ limitations under the License.
 [^9]: https://github.com/apple/swift/blob/swift-5.10-RELEASE/stdlib/public/core/MemoryLayout.swift#L57-L63
 [^10]: ../FoodTruckKit/Benchmarks/Package.swift
 [^11]: https://github.com/ordo-one/package-benchmark
-[^12]: FoodTruckKit/Benchmarks/Sources/Benchmarks.swift
+[^12]: ../FoodTruckKit/Benchmarks/Sources/Benchmarks.swift
 [^13]: https://developer.apple.com/documentation/xcode/reducing-your-app-s-launch-time
 [^14]: https://www.mikeash.com/pyblog/friday-qa-2015-04-17-lets-build-swiftarray.html
 [^15]: https://developer.apple.com/documentation/xcode/understanding-user-interface-responsiveness
