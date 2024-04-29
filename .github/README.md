@@ -97,6 +97,8 @@ The `OrdersTable`[^3] is a SwiftUI component that reads (and displays) data from
 
 Feel free to look around this code and investigate how things are currently architected before moving forward. We will be hacking on the sample project from Apple to collect our measurements. You can choose to follow along by hacking on the Apple repo, or you can clone the `Swift-CowBox-Sample` fork to see the complete project with our changes already implemented.
 
+When choosing whether or not to adopt `CowBox` in a project, start by looking for data structures that would produce a measurable performance benefit from migrating to copy-on-write. Our `Order` value-type is complex (much more data than is needed by one pointer) and is copied many times over an app lifecycle. Instead of migrating several data structures to copy-on-write semantics all at once, let’s start just with `Order` (and measure our performance against our baseline).
+
 ## Order Struct
 
 Our goal will be to test the performance of our Food Truck app with (and without) copy-on-write semantics added to the `Order` struct instances that are passed to the `OrdersTable` component. We can begin by inspecting the `Order` type to see what kind of a memory footprint we are starting with for every struct instance. To read this without the overhead of our SwiftUI app, we can build a new executable package.[^7] Here is all we need:[^8]
@@ -119,7 +121,7 @@ The `stride` of every `Order` instance measures 144 bytes. For one `Array` of *n
 
 ### Benchmarks
 
-Now that we have a basic understanding of the memory footprint of one `Order` instance, we will start the work to measure some basic benchmarks against our data models. We start with a hack on `FoodTruckModel`. The `FoodTruckModel` comes with some code to simulate new orders coming in after the app is launched. This can make our measurements a little more noisy than necessary. Let’s disable this functionality before moving forward:
+Now that we have a basic understanding of the memory footprint of one `Order` instance, we will start the work to define benchmarks against our data models. We start with a hack on `FoodTruckModel`. The `FoodTruckModel` comes with some code to simulate new orders coming in after the app is launched. This can make our measurements a little more noisy than necessary. Let’s disable this functionality before moving forward:
 
 ```diff
          monthlyOrderSummaries = Dictionary(uniqueKeysWithValues: City.all.map { city in
@@ -326,7 +328,7 @@ We don’t need this custom equality implementation for the rest of our measurem
 
 ### Instruments
 
-Let’s turn our attention to Instruments and begin to measure the performance of a complete app lifecycle. Before we launch instruments, let’s add some extra code to our app to take measurements. We will add `OSSignposter`[^16] here in `FoodTruckModel`:
+Let’s turn our attention to Instruments and begin to measure the performance of a complete app lifecycle. Before we launch instruments, let’s add some extra code to our app to take some more measurements. We will add `OSSignposter`[^16] here in `FoodTruckModel`:
 
 ```diff
  import SwiftUI
@@ -394,9 +396,9 @@ We now have three `OSSignposter` intervals to measure work we measured in the or
 
 Here is what our measurements look like:
 
-| FoodTruckModel.init | Avg Duration | Std Dev Duration | Count | Total Duration
-| --- | --- | --- | --- | --- |
-| Order Struct | 81.23 ms | | 1 | 81.23 ms
+| FoodTruckModel.init | Count | Total Duration
+| --- | --- | --- |
+| Order Struct | 1 | 81.23 ms
 
 | FoodTruckModel.sortedOrders | Avg Duration | Std Dev Duration | Count | Total Duration
 | --- | --- | --- | --- | --- |
@@ -447,7 +449,7 @@ var body: some View {
 
 We’re not (currently) doing anything to cache these sorted `Order` instances. These are O(*n* log *n*) operations that add up to a lot of extra time spent on the main thread. This is not directly related to a discussion about copy-on-write semantics, but we will look at a strategy later to optimize this.
 
-Now that we have a baseline measurement for those signposts, let’s build some baseline measurements for performance. Let’s launch Instruments again. This time we select the SwiftUI template[^17]. Before we launch our app and begin recording, we also add the Allocations instrument[^18] to measure our memory footprint. We also update the Hangs instrument to measure for hangs greater than 33 ms (the default setting measures for hangs greater than 100 ms).
+Now that we have a baseline measurement for those signposts, let’s build some more baseline measurements for app performance. Let’s launch Instruments again. This time we select the SwiftUI template[^17]. Before we launch our app and begin recording, we also add the Allocations instrument[^18] to measure our memory footprint. We also update the Hangs instrument to measure for hangs greater than 33 ms (the default setting measures for hangs greater than 100 ms).
 
 We launch our app in Instruments and complete the same steps as before (navigation to `OrdersTable` and mark the first ten `Order` instances as completed). Here are some highlights from our measurements:
 
@@ -706,10 +708,10 @@ We don’t need this custom equality implementation for the rest of our measurem
 
 We still have our signpost intervals defined from our previous measurements. Let’s run Instruments (with the os_signposts instrument). We follow the same steps as before (we navigate to `OrdersTable` and mark the first ten `Order` instances as completed). Let’s see how these signpost intervals measure compared with the previous measurements:
 
-| FoodTruckModel.init | Avg Duration | Std Dev Duration | Count | Total Duration
-| --- | --- | --- | --- | --- |
-| Order Struct | 81.23 ms | | 1 | 81.23 ms
-| Order CowBox | 85.11 ms | | 1 | 85.11 ms
+| FoodTruckModel.init | Count | Total Duration
+| --- | --- | --- |
+| Order Struct | 1 | 81.23 ms
+| Order CowBox | 1 | 85.11 ms
 
 | FoodTruckModel.sortedOrders | Avg Duration | Std Dev Duration | Count | Total Duration
 | --- | --- | --- | --- | --- |
@@ -752,11 +754,11 @@ These all look very impactful. What is also very interesting is that we saw thes
 
 ## Order CowBox and Memoization
 
-We saw a lot of improvements in CPU and memory just from changing the implementation of our data model layer. The *interface* of our data model layer remained the same. We also did not attempt to optimize the implementation of our view component layer. This project is intended demonstrate the benefits of copy-on-write semantics in our data model layer, but we can begin to attempt a refactoring in our view component layer to see how the optimizations we measured by migrating to copy-on-write semantics in our data model layer are affected.
+We saw a lot of improvements to performance just from changing the implementation of our data model layer. The *interface* of our data model layer remained the same. We also did not attempt to optimize the implementation of our view component layer. This project is intended to demonstrate the benefits of copy-on-write semantics in our data model layer, but we can begin to attempt a refactoring in our view component layer to see how the optimizations we measured by migrating to copy-on-write semantics in our data model layer are affected.
 
 Let’s take another look at our `OrdersTable` component. As we discovered, our `OrdersTable` is not caching (or saving) its underlying set of `Order` elements in the order they are presented on-screen. When the state of our component changes (like when the user selects an element), this is leading to another O(*n* log *n*) operation to sort all our `Order` elements again (even if those `Order` elements have not changed). This is a lot of extra work that is all happening on the main thread. Moving that sorting to a background thread could help, but we would like to find a way to prevent unnecessary sorting operations from happening in the first place.
 
-Here is the function our `OrdersTable` uses to sort `Order` elements:
+Here is the computed property our `OrdersTable` uses to sort `Order` elements:
 
 ```swift
 var orders: [Order] {
@@ -767,7 +769,7 @@ var orders: [Order] {
 }
 ```
 
-This is an instance method on our component, but suppose we thought of this as a stateless function. Here is an example of what that might look like:
+This is an instance property on our component, but suppose we thought of this as a stateless function. Here is an example of what that might look like:
 
 ```swift
 func SortedOrders(
@@ -928,11 +930,11 @@ Navigating to `OrdersTable` and marking one `Order` instance as completed needed
 
 Let’s take another look at Instruments. We follow our previous pattern. We run Instruments (with the os_signposts instrument). We follow the same steps as before (we navigate to `OrdersTable` and mark the first ten `Order` instances as completed). Here are the measurements:
 
-| FoodTruckModel.init | Avg Duration | Std Dev Duration | Count | Total Duration
-| --- | --- | --- | --- | --- |
-| Order Struct | 81.23 ms | | 1 | 81.23 ms
-| Order CowBox | 85.11 ms | | 1 | 85.11 ms
-| Memoized Order CowBox | 84.13 ms | | 1 | 84.13 ms
+| FoodTruckModel.init | Count | Total Duration
+| --- | --- | --- |
+| Order Struct | 1 | 81.23 ms
+| Order CowBox | 1 | 85.11 ms
+| Memoized Order CowBox | 1 | 84.13 ms
 
 | FoodTruckModel.sortedOrders | Avg Duration | Std Dev Duration | Count | Total Duration
 | --- | --- | --- | --- | --- |
@@ -990,12 +992,12 @@ Adding back our old hack to test for equality checks, we can count how many time
 
 Let’s open Instruments and begin our measurements with the os_signposts instrument:
 
-| FoodTruckModel.init | Avg Duration | Std Dev Duration | Count | Total Duration
-| --- | --- | --- | --- | --- |
-| Order Struct | 81.23 ms | | 1 | 81.23 ms
-| Order CowBox | 85.11 ms | | 1 | 85.11 ms
-| Memoized Order CowBox | 84.13 ms | | 1 | 84.13 ms
-| Memoized Order Struct | 81.48 ms | | 1 | 81.48 ms
+| FoodTruckModel.init | Count | Total Duration
+| --- | --- | --- |
+| Order Struct | 1 | 81.23 ms
+| Order CowBox | 1 | 85.11 ms
+| Memoized Order CowBox | 1 | 84.13 ms
+| Memoized Order Struct | 1 | 81.48 ms
 
 | FoodTruckModel.sortedOrders | Avg Duration | Std Dev Duration | Count | Total Duration
 | --- | --- | --- | --- | --- |
@@ -1047,6 +1049,30 @@ We began with a sample app from Apple built on immutable value-types. We defined
 Once we measured our baseline measurements, we migrated one immutable value-type to copy-on-write semantics with the `CowBox` macro. We measured performance improvements: our app ran faster and used less memory.
 
 We refactored our view component to memoize a sorted array. We confirmed that this improved performance. Pairing this refactoring in our view component layer with the refactoring in our data layer gave us the best results.
+
+## Next Steps
+
+The `Swift-CowBox` macro makes it easy to add copy-on-write semantics to structs. We saw how this migration can improve performance in the Food Truck sample app from Apple. Should you migrate your own structs to `Swift-CowBox`? It depends.
+
+The most impactful structs to migrate to copy-on-write semantics would be structs that are complex (a lot of data) that you expect to copy many times over the course of an app lifecycle.
+
+Before you attempt to add `Swift-CowBox`, start with baseline benchmark measurements:
+
+* Control:
+  * Confirm the memory footprint of one struct instance.
+  * Define (and run) some benchmarks against the data models of your app from a command-line utility like `Benchmark` from Ordo One.
+  * Run Instruments like os_signpost, Hangs, Core Animation Commits, and Allocations over an app lifecycle.
+* Test:
+  * Migrate one data model to copy-on-write semantics with `Swift-CowBox`.
+  * Repeat the steps from Control and compare these measurements with your baseline.
+
+Your “control” group would be your app built from your original struct data model. Your “test” group would be your app built with your new `Swift-CowBox` data model.
+
+Use your best judgement. If migrating to `Swift-CowBox` significantly increases app launch time, the performance improvements over the course of your app lifecycle might not be worth it. Someone else can’t make that decision for you; you will have the most context and insight when it comes to what should produce the best user experience for your own customers.
+
+Please file a GitHub issue for any new issues or limitations you encounter when using `Swift-CowBox`.
+
+Thanks!
 
 ## Copyright
 
